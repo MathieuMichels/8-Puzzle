@@ -1,0 +1,234 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 2.5em;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.puzzle-container {
+    display: inline-block;
+    background: #34495e;
+    border-radius: 15px;
+    padding: 15px;
+    margin: 20px 0;
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.puzzle-grid {
+    position: relative;
+    width: 300px;
+    height: 300px;
+}
+
+.tile {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(145deg, #3498db, #2980b9);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 2.5em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    position: absolute;
+    user-select: none;
+}
+
+.tile:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(145deg, #5dade2, #3498db);
+}
+
+.tile:active {
+    transform: translateY(-2px) scale(1.02);
+}
+
+.tile.empty {
+    background: transparent;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: default;
+}
+
+.tile.empty:hover {
+    transform: none;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tile.highlight {
+    background: linear-gradient(145deg, #e74c3c, #c0392b);
+    animation: pulse 0.6s ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-primary {
+    background: linear-gradient(145deg, #27ae60, #229954);
+    color: white;
+    box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(39, 174, 96, 0.4);
+}
+
+.btn-secondary {
+    background: linear-gradient(145deg, #f39c12, #e67e22);
+    color: white;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(243, 156, 18, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(145deg, #e74c3c, #c0392b);
+    color: white;
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+}
+
+.info {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.status {
+    margin: 15px 0;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.status.success {
+    background: linear-gradient(145deg, #d5f4e6, #a8e6cf);
+    color: #27ae60;
+    border: 2px solid #27ae60;
+}
+
+.status.solving {
+    background: linear-gradient(145deg, #fef9e7, #fcf3cf);
+    color: #f39c12;
+    border: 2px solid #f39c12;
+}
+
+.goal-state {
+    margin-top: 20px;
+}
+
+.goal-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: #ecf0f1;
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 10px;
+}
+
+.goal-tile {
+    width: 40px;
+    height: 40px;
+    background: #bdc3c7;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.goal-tile.empty {
+    background: #95a5a6;
+}
+
+@media (max-width: 480px) {
+    .puzzle-grid {
+        width: 250px;
+        height: 250px;
+    }
+    
+    .tile {
+        width: 75px;
+        height: 75px;
+        font-size: 2em;
+    }
+    
+    .controls {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    button {
+        width: 200px;
+    }
+}
