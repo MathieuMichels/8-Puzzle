@@ -3,19 +3,17 @@ let puzzleChart;
 
 class PuzzleGame {
     constructor() {
-        this.grid = [1, 2, 3, 4, 5, 6, 7, 8, 0]; // 0 represents empty space
-        this.goalState = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+        this.grid = [1, 2, 3, 4, 5, 6, 7, 8, 0];        this.goalState = [1, 2, 3, 4, 5, 6, 7, 8, 0];
         this.moves = 0;
         this.minMoves = 0;
         this.startTime = null;
         this.timerInterval = null;
         this.issolving = false;
         this.solvingInterval = null;
-        this.solutionCache = new Map(); // Cache pour stocker les solutions calculées
-        this.stateCache = new Map(); // Cache pour stocker les états intermédiaires
-        this.pathCache = new Map(); // Cache pour les chemins partiels
-        this.globalNodeCounter = 0; // Compteur global de nœuds explorés
-        this.patternDatabase = {}; // Base de données de motifs pour l'heuristique
+        this.solutionCache = new Map();        this.stateCache = new Map();        this.pathCache = new Map();        this.globalNodeCounter = 0;        this.patternDatabase = {};
+        
+        // Cache pour les fichiers de puzzle (moves_*.json)
+        this.loadMovesCache();
         
         // Construire la base de données de motifs (précalculs pour heuristique)
         this.buildPatternDatabase();
@@ -26,6 +24,33 @@ class PuzzleGame {
         
         this.initializeGame();
         this.setupEventListeners();
+    }
+    
+    // Cache statique pour stocker les fichiers de configurations de puzzle
+    static movesCache = {};
+    
+    // Méthode pour charger le cache depuis localStorage au démarrage
+    loadMovesCache() {
+        try {
+            const cachedData = localStorage.getItem('puzzleMovesCache');
+            if (cachedData) {
+                PuzzleGame.movesCache = JSON.parse(cachedData);
+                console.log(`Cache chargé avec ${Object.keys(PuzzleGame.movesCache).length} fichiers de configurations`);
+            }
+        } catch (error) {
+            console.warn("Impossible de charger le cache depuis localStorage:", error);
+            PuzzleGame.movesCache = {};
+        }
+    }
+    
+    // Méthode pour sauvegarder le cache dans localStorage
+    saveMovesCache() {
+        try {
+            localStorage.setItem('puzzleMovesCache', JSON.stringify(PuzzleGame.movesCache));
+            console.log(`Cache sauvegardé avec ${Object.keys(PuzzleGame.movesCache).length} fichiers de configurations`);
+        } catch (error) {
+            console.warn("Impossible de sauvegarder le cache dans localStorage:", error);
+        }
     }
 
     initializeGame() {
@@ -919,6 +944,21 @@ class PuzzleGame {
             // Utiliser un chemin relatif pour fonctionner dans le navigateur
             const filePath = `assets/move_data/moves_${moves}.json`;
             
+            // Vérifier d'abord dans le cache
+            if (PuzzleGame.movesCache[moves]) {
+                const puzzleState = PuzzleGame.movesCache[moves];
+                this.grid = puzzleState;
+                this.renderGrid();
+                
+                // Mettre à jour les compteurs
+                this.minMoves = moves;
+                document.getElementById('minMoves').textContent = this.minMoves;
+                this.finalizePuzzleGeneration(difficultyLabel);
+                
+                console.log(`Configuration chargée depuis le cache (${moves} coups)`);
+                return true;
+            }
+            
             // Utiliser une requête synchrone pour simplifier le code
             const xhr = new XMLHttpRequest();
             xhr.open('GET', filePath, false);
@@ -940,6 +980,10 @@ class PuzzleGame {
                     this.minMoves = puzzleData.moves;
                     document.getElementById('minMoves').textContent = this.minMoves;
                     this.finalizePuzzleGeneration(difficultyLabel);
+                    
+                    // Sauvegarder dans le cache
+                    PuzzleGame.movesCache[moves] = puzzleState;
+                    this.saveMovesCache();
                     
                     console.log(`Configuration chargée depuis ${filePath} (${puzzleData.moves} coups)`);
                     return true;
