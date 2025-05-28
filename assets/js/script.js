@@ -39,6 +39,10 @@ class PuzzleGame {
         document.getElementById('shuffleBtn').addEventListener('click', () => this.shufflePuzzle());
         document.getElementById('solveBtn').addEventListener('click', () => this.solvePuzzle());
         document.getElementById('stopBtn').addEventListener('click', () => this.stopSolving());
+        // Ajout d'un écouteur pour le sélecteur de difficulté
+        document.getElementById('difficulty').addEventListener('change', (e) => {
+            console.log(`Niveau de difficulté changé: ${e.target.value}`);
+        });
     }
 
     renderGrid() {
@@ -827,31 +831,169 @@ class PuzzleGame {
     shufflePuzzle() {
         this.stopSolving();
         
-        // Generate a solvable random state
+        // Déterminer le niveau de difficulté sélectionné
+        const difficultySelect = document.getElementById('difficulty');
+        const selectedDifficulty = difficultySelect.value;
+        
+        console.log(`Génération d'un puzzle de difficulté: ${selectedDifficulty}`);
+        
+        // Réinitialiser le graphique avant de générer un nouveau puzzle
+        if (typeof puzzleChart !== 'undefined') {
+            puzzleChart.resetChart();
+        }
+        
+        // Définir les plages de difficulté pour chaque niveau
+        const difficultyRange = this.getDifficultyRange(selectedDifficulty);
+        let minMovesTarget = { min: difficultyRange.min, max: difficultyRange.max };
+        
+        // Nombre maximum de tentatives pour trouver un puzzle de la bonne difficulté
+        const maxAttempts = 1000;
+        let attempts = 0;
+        let puzzleFound = false;
+        
+        this.updateStatus("Génération du puzzle en cours...");
+        
+        // Tentatives de génération du puzzle jusqu'à obtenir la bonne difficulté
         do {
-            this.grid = [...this.goalState];
-            for (let i = this.grid.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [this.grid[i], this.grid[j]] = [this.grid[j], this.grid[i]];
+            attempts++;
+            
+            // Pour le mode aléatoire, on ne vérifie pas la difficulté spécifique
+            if (selectedDifficulty === 'random') {
+                this.generatePuzzle(this.getRandomInt(15, 50));
+                puzzleFound = true;
+            } else {
+                // On commence avec un nombre de mouvements dans la plage cible
+                const initialShuffleMoves = this.getRandomInt(minMovesTarget.min, minMovesTarget.max + 1);
+                this.generatePuzzle(initialShuffleMoves);
+                
+                // Cette vérification est asynchrone, donc on utilise async/await
+                const checkPuzzleDifficulty = async () => {
+                    // Calculer le nombre minimum de coups (sans mettre à jour le sélecteur de difficulté)
+                    const minMoves = await this.updateMinMovesCount(true);
+                    
+                    console.log(`Tentative ${attempts}: Puzzle généré avec ${minMoves} coups minimum`);
+                    
+                    // Vérifier si le puzzle est dans la plage de difficulté souhaitée
+                    if (minMoves >= minMovesTarget.min && minMoves <= minMovesTarget.max) {
+                        console.log(`Puzzle de difficulté ${selectedDifficulty} trouvé (${minMoves} coups minimum)`);
+                        this.minMoves = minMoves;
+                        document.getElementById('minMoves').textContent = this.minMoves;
+                        
+                        // Mettre à jour le sélecteur de difficulté manuellement
+                        const difficultySelect = document.getElementById('difficulty');
+                        if (difficultySelect.value !== selectedDifficulty) {
+                            difficultySelect.value = selectedDifficulty;
+                        }
+                        
+                        // Mise à jour du graphique et affichage de la réussite
+                        this.updateChartData();
+                        this.updateStatus(`Puzzle mélangé! Difficulté: ${difficultyRange.label} (${minMoves} coups minimum)`);
+                        return true;
+                    } 
+                    return false;
+                };
+                
+                // Exécution de la vérification et génération itérative
+                const generatePuzzleWithDifficulty = async () => {
+                    let puzzleValid = await checkPuzzleDifficulty();
+                    
+                    // Si le puzzle n'est pas dans la bonne difficulté, en générer un nouveau
+                    while (!puzzleValid && attempts < maxAttempts) {
+                        attempts++;
+                        console.log(`Difficulté hors plage souhaitée, tentative ${attempts}/${maxAttempts}...`);
+                        
+                        // Générer un nouveau puzzle avec un nombre de mouvements ajusté
+                        const shuffleMoves = this.getRandomInt(minMovesTarget.min, minMovesTarget.max + 1);
+                        this.generatePuzzle(shuffleMoves);
+                        
+                        // Vérifier à nouveau la difficulté
+                        puzzleValid = await checkPuzzleDifficulty();
+                    }
+                    
+                    if (!puzzleValid) {
+                        console.log(`Nombre maximum de tentatives atteint (${maxAttempts}). Utilisation du dernier puzzle généré.`);
+                        this.updateStatus(`Puzzle mélangé! Difficulté approximative après ${maxAttempts} tentatives.`);
+                    }
+                };
+                
+                // Exécuter la génération avec vérification de difficulté
+                generatePuzzleWithDifficulty();
+                puzzleFound = true; // On sort de la boucle, la vérification est déléguée à checkPuzzleDifficulty
             }
-        } while (!this.isSolvable() || this.isWon());
-
+        } while (!puzzleFound && attempts < maxAttempts);
+        
         this.moves = 0;
         this.updateMoveCount();
-        this.renderGrid();
-        this.updateStatus("Puzzle mélangé ! Résolvez-le en cliquant sur les tuiles.");
         this.startTimer();
+    }
+    
+    // Méthode séparée pour générer un puzzle avec un nombre donné de mouvements
+    generatePuzzle(shuffleMoves) {
+        // Réinitialiser la grille à l'état résolu
+        this.grid = [...this.goalState];
         
-        // Calcul asynchrone après le mélange
-        setTimeout(() => {
-            console.group("Analyse du puzzle mélangé");
-            this.updateMinMovesCount();
-            if (typeof puzzleChart !== 'undefined') {
-                puzzleChart.resetChart();
-                this.updateChartData();
+        console.log(`Application de ${shuffleMoves} mouvements aléatoires...`);
+        
+        // Garde un historique des derniers mouvements pour éviter de défaire un mouvement
+        let lastMove = -1;
+        
+        for (let i = 0; i < shuffleMoves; i++) {
+            // Obtenir tous les mouvements possibles
+            const emptyIndex = this.grid.indexOf(0);
+            const possibleMoves = [];
+            
+            // Vérifier les quatre directions possibles (haut, bas, gauche, droite)
+            if (emptyIndex >= 3) possibleMoves.push(emptyIndex - 3); // Haut
+            if (emptyIndex < 6) possibleMoves.push(emptyIndex + 3); // Bas
+            if (emptyIndex % 3 !== 0) possibleMoves.push(emptyIndex - 1); // Gauche
+            if (emptyIndex % 3 !== 2) possibleMoves.push(emptyIndex + 1); // Droite
+            
+            // Filtrer pour éviter de défaire le dernier mouvement
+            const filteredMoves = possibleMoves.filter(move => move !== lastMove);
+            
+            // S'il n'y a pas de mouvements valides après filtrage, utiliser tous les mouvements
+            const moves = filteredMoves.length > 0 ? filteredMoves : possibleMoves;
+            
+            // Sélectionner un mouvement aléatoire
+            const randomIndex = Math.floor(Math.random() * moves.length);
+            const moveIndex = moves[randomIndex];
+            
+            // Effectuer le mouvement
+            [this.grid[emptyIndex], this.grid[moveIndex]] = [this.grid[moveIndex], this.grid[emptyIndex]];
+            
+            // Mémoriser la position de la case vide après ce mouvement pour éviter de la défaire
+            lastMove = moveIndex;
+        }
+        
+        // Vérifier que le puzzle est réellement mélangé (pas déjà résolu)
+        if (this.isWon()) {
+            // Si par hasard on est revenu à l'état résolu, échanger deux tuiles (si ce n'est pas la case vide)
+            if (this.grid[0] !== 0 && this.grid[1] !== 0) {
+                [this.grid[0], this.grid[1]] = [this.grid[1], this.grid[0]];
+            } else if (this.grid[1] !== 0 && this.grid[2] !== 0) {
+                [this.grid[1], this.grid[2]] = [this.grid[2], this.grid[1]];
             }
-            console.groupEnd();
-        }, 0);
+        }
+        
+        // Vérifier que le puzzle est solvable
+        if (!this.isSolvable()) {
+            // Si non solvable, échanger deux tuiles pour le rendre solvable (sauf la case vide)
+            // Cela change la parité des inversions
+            if (this.grid[0] !== 0 && this.grid[1] !== 0) {
+                [this.grid[0], this.grid[1]] = [this.grid[1], this.grid[0]];
+            } else if (this.grid[1] !== 0 && this.grid[2] !== 0) {
+                [this.grid[1], this.grid[2]] = [this.grid[2], this.grid[1]];
+            }
+        }
+        
+        this.renderGrid();
+    }
+    
+    // Méthode utilitaire pour générer un nombre aléatoire dans un intervalle [min, max[
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min)) + min;
     }
 
     isSolvable() {
@@ -1063,11 +1205,27 @@ class PuzzleGame {
         }
     }
 
-    updateMinMovesCount() {
+    updateMinMovesCount(skipDifficultyUpdate = false) {
         // Utiliser Promise pour s'assurer que l'UI est mise à jour avant le calcul
-        requestAnimationFrame(async () => {
-            this.minMoves = await this.calculateMinMoves();
-            document.getElementById('minMoves').textContent = this.minMoves;
+        return new Promise(resolve => {
+            requestAnimationFrame(async () => {
+                this.minMoves = await this.calculateMinMoves();
+                document.getElementById('minMoves').textContent = this.minMoves;
+                
+                // Mettre à jour le sélecteur de difficulté pour refléter le niveau actuel
+                // sauf si on est en train de générer des puzzles successifs
+                if (this.minMoves > 0 && !skipDifficultyUpdate) {
+                    const difficultyLevel = this.getDifficultyLevelFromMoves(this.minMoves);
+                    const difficultySelect = document.getElementById('difficulty');
+                    
+                    // Mettre à jour le sélecteur seulement si ce n'est pas déjà sélectionné
+                    if (difficultySelect.value !== difficultyLevel) {
+                        console.log(`Mise à jour du niveau de difficulté: ${difficultyLevel} (${this.minMoves} coups)`);
+                        difficultySelect.value = difficultyLevel;
+                    }
+                }
+                resolve(this.minMoves);
+            });
         });
     }
     
@@ -1113,6 +1271,29 @@ class PuzzleGame {
         const statusElement = document.getElementById('status');
         statusElement.textContent = message;
         statusElement.className = `status ${type}`;
+    }
+
+    // Méthode pour obtenir la plage de difficulté basée sur la sélection
+    getDifficultyRange(difficultyLevel) {
+        switch (difficultyLevel) {
+            case 'very-easy': return { min: 1, max: 4, label: "Très facile" };
+            case 'easy': return { min: 5, max: 9, label: "Facile" };
+            case 'medium': return { min: 10, max: 14, label: "Moyen" };
+            case 'hard': return { min: 15, max: 19, label: "Difficile" };
+            case 'very-hard': return { min: 20, max: 24, label: "Très difficile" };
+            case 'extreme': return { min: 25, max: 50, label: "Extrême" };
+            default: return { min: 0, max: Infinity, label: "Aléatoire" };
+        }
+    }
+
+    // Méthode pour estimer la difficulté basée sur le nombre de coups minimum
+    getDifficultyLevelFromMoves(moves) {
+        if (moves < 5) return "very-easy";
+        if (moves < 10) return "easy";
+        if (moves < 15) return "medium";
+        if (moves < 20) return "hard";
+        if (moves < 25) return "very-hard";
+        return "extreme";
     }
 }
 

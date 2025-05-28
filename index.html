@@ -25,6 +25,19 @@
 
             <div class="status" id="status">Cliquez sur une tuile adjacente à l'espace vide pour la déplacer</div>
 
+            <div class="difficulty-selector">
+                <label for="difficulty">Difficulté :</label>
+                <select id="difficulty" class="difficulty-select">
+                    <option value="very-easy">Très facile (< 5 coups)</option>
+                    <option value="easy">Facile (5-9 coups)</option>
+                    <option value="medium" selected>Moyen (10-14 coups)</option>
+                    <option value="hard">Difficile (15-19 coups)</option>
+                    <option value="very-hard">Très difficile (20-24 coups)</option>
+                    <option value="extreme">Extrême (25+ coups)</option>
+                    <option value="random">Aléatoire</option>
+                </select>
+            </div>
+
             <div class="controls">
                 <button class="btn-primary" id="shuffleBtn">🔄 Mélanger</button>
                 <button class="btn-secondary" id="solveBtn">🤖 Résoudre</button>
