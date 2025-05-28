@@ -847,97 +847,125 @@ class PuzzleGame {
         let minMovesTarget = { min: difficultyRange.min, max: difficultyRange.max };
         
         // Nombre maximum de tentatives pour trouver un puzzle de la bonne difficulté
-        const maxAttempts = 1000;
+        const maxAttempts = 100;
         let attempts = 0;
         let puzzleFound = false;
         
         this.updateStatus("Génération du puzzle en cours...");
         
-        // Tentatives de génération du puzzle jusqu'à obtenir la bonne difficulté
-        do {
-            attempts++;
-            
-            // Pour le mode aléatoire, on ne vérifie pas la difficulté spécifique
-            if (selectedDifficulty === 'random') {
-                this.generatePuzzle(this.getRandomInt(15, 50));
-                puzzleFound = true;
-            } else {
-                // On commence avec un nombre de mouvements dans la plage cible
-                const initialShuffleMoves = this.getRandomInt(minMovesTarget.min, minMovesTarget.max + 1);
-                this.generatePuzzle(initialShuffleMoves);
-                
-                // Cette vérification est asynchrone, donc on utilise async/await
-                const checkPuzzleDifficulty = async () => {
-                    // Calculer le nombre minimum de coups (sans mettre à jour le sélecteur de difficulté)
-                    const minMoves = await this.updateMinMovesCount(true);
-                    
-                    console.log(`Tentative ${attempts}: Puzzle généré avec ${minMoves} coups minimum`);
-                    
-                    // Vérifier si le puzzle est dans la plage de difficulté souhaitée
-                    if (minMoves >= minMovesTarget.min && minMoves <= minMovesTarget.max) {
-                        console.log(`Puzzle de difficulté ${selectedDifficulty} trouvé (${minMoves} coups minimum)`);
-                        this.minMoves = minMoves;
-                        document.getElementById('minMoves').textContent = this.minMoves;
-                        
-                        // Mettre à jour le sélecteur de difficulté manuellement
-                        const difficultySelect = document.getElementById('difficulty');
-                        if (difficultySelect.value !== selectedDifficulty) {
-                            difficultySelect.value = selectedDifficulty;
-                        }
-                        
-                        // Mise à jour du graphique et affichage de la réussite
-                        this.updateChartData();
-                        this.updateStatus(`Puzzle mélangé! Difficulté: ${difficultyRange.label} (${minMoves} coups minimum)`);
-                        return true;
-                    } 
-                    return false;
-                };
-                
-                // Exécution de la vérification et génération itérative
-                const generatePuzzleWithDifficulty = async () => {
-                    let puzzleValid = await checkPuzzleDifficulty();
-                    
-                    // Si le puzzle n'est pas dans la bonne difficulté, en générer un nouveau
-                    while (!puzzleValid && attempts < maxAttempts) {
-                        attempts++;
-                        console.log(`Difficulté hors plage souhaitée, tentative ${attempts}/${maxAttempts}...`);
-                        
-                        // Générer un nouveau puzzle avec un nombre de mouvements ajusté
-                        const shuffleMoves = this.getRandomInt(minMovesTarget.min, minMovesTarget.max + 1);
-                        this.generatePuzzle(shuffleMoves);
-                        
-                        // Vérifier à nouveau la difficulté
-                        puzzleValid = await checkPuzzleDifficulty();
-                    }
-                    
-                    if (!puzzleValid) {
-                        console.log(`Nombre maximum de tentatives atteint (${maxAttempts}). Utilisation du dernier puzzle généré.`);
-                        this.updateStatus(`Puzzle mélangé! Difficulté approximative après ${maxAttempts} tentatives.`);
-                    }
-                };
-                
-                // Exécuter la génération avec vérification de difficulté
-                generatePuzzleWithDifficulty();
-                puzzleFound = true; // On sort de la boucle, la vérification est déléguée à checkPuzzleDifficulty
-            }
-        } while (!puzzleFound && attempts < maxAttempts);
+        // Pour le mode aléatoire, on fait simplement un mélange très intense
+        if (selectedDifficulty === 'random') {
+            this.randomMixPuzzle(200);
+            this.finalizePuzzleGeneration("Aléatoire");
+            return;
+        }
         
-        this.moves = 0;
-        this.updateMoveCount();
-        this.startTimer();
+        // Pour les autres niveaux de difficulté, on génère un puzzle bien mélangé 
+        // puis on le résout partiellement jusqu'à atteindre la difficulté souhaitée
+        const generatePuzzleWithDifficulty = async () => {
+            let valid = false;
+            
+            while (!valid && attempts < maxAttempts) {
+                attempts++;
+                console.log(`Tentative ${attempts}/${maxAttempts} pour générer un puzzle de difficulté ${selectedDifficulty}...`);
+                
+                // 1. Mélanger intensément le puzzle (100 mouvements)
+                this.randomMixPuzzle(100);
+                
+                // 2. Calculer le nombre minimum de coups nécessaires pour résoudre
+                let minMoves = await this.updateMinMovesCount(true);
+                console.log(`Puzzle généré avec ${minMoves} coups minimum`);
+                
+                // 3. Vérifier si la difficulté est déjà dans la plage cible
+                if (minMoves >= minMovesTarget.min && minMoves <= minMovesTarget.max) {
+                    console.log(`Puzzle de difficulté ${selectedDifficulty} trouvé directement (${minMoves} coups minimum)`);
+                    valid = true;
+                } 
+                // 4. Si le puzzle est trop difficile, le résoudre partiellement
+                else if (minMoves > minMovesTarget.max) {
+                    console.log(`Puzzle trop difficile (${minMoves} coups), résolution partielle...`);
+                    
+                    // Résoudre partiellement le puzzle
+                    valid = await this.partiallyResolvePuzzle(minMoves, minMovesTarget);
+                }
+                // 5. Si le puzzle est trop facile, recommencer
+                else {
+                    console.log(`Puzzle trop facile (${minMoves} coups), nouvelle tentative...`);
+                }
+            }
+            
+            if (valid) {
+                console.log(`Puzzle de difficulté ${selectedDifficulty} généré avec succès`);
+                // Mise à jour du sélecteur de difficulté
+                if (difficultySelect.value !== selectedDifficulty) {
+                    difficultySelect.value = selectedDifficulty;
+                }
+            } else {
+                console.log(`Échec de génération après ${maxAttempts} tentatives.`);
+                this.updateStatus(`Puzzle mélangé! Difficulté approximative après ${maxAttempts} tentatives.`);
+            }
+            
+            // Finaliser l'initialisation du jeu
+            this.finalizePuzzleGeneration(difficultyRange.label);
+        };
+        
+        // Lancer la génération du puzzle
+        generatePuzzleWithDifficulty();
     }
     
-    // Méthode séparée pour générer un puzzle avec un nombre donné de mouvements
-    generatePuzzle(shuffleMoves) {
+    // Méthode pour résoudre partiellement un puzzle jusqu'à atteindre la difficulté souhaitée
+    async partiallyResolvePuzzle(currentMinMoves, targetDifficulty) {
+        console.log(`Résolution partielle: de ${currentMinMoves} coups vers ${targetDifficulty.min}-${targetDifficulty.max} coups`);
+        
+        // Calculer le chemin vers la solution
+        const solution = this.aStar();
+        
+        if (!solution) {
+            console.log("Impossible de calculer une solution pour ce puzzle");
+            return false;
+        }
+        
+        // Nombre de mouvements à effectuer pour atteindre la difficulté cible
+        // On vise le milieu de la plage
+        const targetMoves = Math.max(0, currentMinMoves - Math.ceil((targetDifficulty.min + targetDifficulty.max) / 2));
+        console.log(`Application de ${targetMoves} mouvements de la solution...`);
+        
+        // Appliquer une partie de la solution pour simplifier le puzzle
+        let currentState = [...this.grid];
+        for (let i = 0; i < targetMoves && i < solution.length; i++) {
+            const moveIndex = solution[i];
+            const emptyIndex = currentState.indexOf(0);
+            [currentState[emptyIndex], currentState[moveIndex]] = [currentState[moveIndex], currentState[emptyIndex]];
+        }
+        
+        // Appliquer l'état partiellement résolu
+        this.grid = currentState;
+        this.renderGrid();
+        
+        // Vérifier si on est dans la bonne plage de difficulté
+        const newMinMoves = await this.updateMinMovesCount(true);
+        console.log(`Après résolution partielle: ${newMinMoves} coups minimum`);
+        
+        const isValidDifficulty = newMinMoves >= targetDifficulty.min && newMinMoves <= targetDifficulty.max;
+        if (isValidDifficulty) {
+            this.minMoves = newMinMoves;
+            document.getElementById('minMoves').textContent = this.minMoves;
+        }
+        
+        return isValidDifficulty;
+    }
+    
+    // Méthode pour mélanger complètement le puzzle avec un grand nombre de mouvements
+    randomMixPuzzle(moves) {
         // Réinitialiser la grille à l'état résolu
         this.grid = [...this.goalState];
         
-        console.log(`Application de ${shuffleMoves} mouvements aléatoires...`);
+        console.log(`Application de ${moves} mouvements aléatoires...`);
         
         // Garde un historique des derniers mouvements pour éviter de défaire un mouvement
         let lastMove = -1;
         
-        for (let i = 0; i < shuffleMoves; i++) {
+        for (let i = 0; i < moves; i++) {
             // Obtenir tous les mouvements possibles
             const emptyIndex = this.grid.indexOf(0);
             const possibleMoves = [];
@@ -952,11 +980,11 @@ class PuzzleGame {
             const filteredMoves = possibleMoves.filter(move => move !== lastMove);
             
             // S'il n'y a pas de mouvements valides après filtrage, utiliser tous les mouvements
-            const moves = filteredMoves.length > 0 ? filteredMoves : possibleMoves;
+            const validMoves = filteredMoves.length > 0 ? filteredMoves : possibleMoves;
             
             // Sélectionner un mouvement aléatoire
-            const randomIndex = Math.floor(Math.random() * moves.length);
-            const moveIndex = moves[randomIndex];
+            const randomIndex = Math.floor(Math.random() * validMoves.length);
+            const moveIndex = validMoves[randomIndex];
             
             // Effectuer le mouvement
             [this.grid[emptyIndex], this.grid[moveIndex]] = [this.grid[moveIndex], this.grid[emptyIndex]];
@@ -978,7 +1006,6 @@ class PuzzleGame {
         // Vérifier que le puzzle est solvable
         if (!this.isSolvable()) {
             // Si non solvable, échanger deux tuiles pour le rendre solvable (sauf la case vide)
-            // Cela change la parité des inversions
             if (this.grid[0] !== 0 && this.grid[1] !== 0) {
                 [this.grid[0], this.grid[1]] = [this.grid[1], this.grid[0]];
             } else if (this.grid[1] !== 0 && this.grid[2] !== 0) {
@@ -987,6 +1014,15 @@ class PuzzleGame {
         }
         
         this.renderGrid();
+    }
+    
+    // Finalise la génération du puzzle en réinitialisant les compteurs et en démarrant le timer
+    finalizePuzzleGeneration(difficultyLabel) {
+        this.moves = 0;
+        this.updateMoveCount();
+        this.updateChartData();
+        this.updateStatus(`Puzzle mélangé! Difficulté: ${difficultyLabel} (${this.minMoves} coups minimum)`);
+        this.startTimer();
     }
     
     // Méthode utilitaire pour générer un nombre aléatoire dans un intervalle [min, max[
