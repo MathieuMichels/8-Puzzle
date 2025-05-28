@@ -1,12 +1,21 @@
+// Global variable for the chart - declare it before any usage
+let puzzleChart;
+
 class PuzzleGame {
     constructor() {
         this.grid = [1, 2, 3, 4, 5, 6, 7, 8, 0]; // 0 represents empty space
         this.goalState = [1, 2, 3, 4, 5, 6, 7, 8, 0];
         this.moves = 0;
+        this.minMoves = 0;
         this.startTime = null;
         this.timerInterval = null;
         this.issolving = false;
         this.solvingInterval = null;
+        this.solutionCache = new Map(); // Cache pour stocker les solutions calculées
+        
+        // Ajuster la grille en fonction de la taille de l'écran
+        this.resizeGrid();
+        window.addEventListener('resize', () => this.resizeGrid());
         
         this.initializeGame();
         this.setupEventListeners();
@@ -16,6 +25,7 @@ class PuzzleGame {
         this.renderGrid();
         this.updateMoveCount();
         this.startTimer();
+        this.updateMinMovesCount();
     }
 
     setupEventListeners() {
@@ -27,7 +37,10 @@ class PuzzleGame {
     renderGrid() {
         const gridElement = document.getElementById('puzzleGrid');
         gridElement.innerHTML = '';
-        const tileSize = 90;
+        
+        // Déterminer la taille des tuiles en fonction de la taille de la grille
+        const gridWidth = gridElement.clientWidth;
+        const tileSize = (gridWidth / 3) - 10; // 10px est la valeur du gap
         const gap = 10;
 
         this.grid.forEach((value, index) => {
@@ -45,6 +58,9 @@ class PuzzleGame {
             const x = col * (tileSize + gap);
             const y = row * (tileSize + gap);
             
+            // Appliquer la taille calculée
+            tile.style.width = `${tileSize}px`;
+            tile.style.height = `${tileSize}px`;
             tile.style.left = `${x}px`;
             tile.style.top = `${y}px`;
             tile.style.transform = `translate(0, 0)`;
@@ -58,6 +74,20 @@ class PuzzleGame {
             
             gridElement.appendChild(tile);
         });
+    }
+    
+    resizeGrid() {
+        const gridElement = document.getElementById('puzzleGrid');
+        if (!gridElement) return;
+        
+        // Ajuster la hauteur pour correspondre à la largeur (carré)
+        const width = gridElement.clientWidth;
+        gridElement.style.height = `${width}px`;
+        
+        // Redessiner la grille avec les nouvelles dimensions
+        if (this.grid) {
+            this.renderGrid();
+        }
     }
 
     moveTile(index) {
@@ -81,6 +111,12 @@ class PuzzleGame {
             }, 100);
 
             this.checkWin();
+            
+            // Exécuter les calculs potentiellement lourds de façon asynchrone
+            setTimeout(() => {
+                this.updateMinMovesCount();
+                this.updateChartData();
+            }, 0);
         }
     }
 
@@ -112,6 +148,15 @@ class PuzzleGame {
         this.renderGrid();
         this.updateStatus("Puzzle mélangé ! Résolvez-le en cliquant sur les tuiles.");
         this.startTimer();
+        
+        // Calcul asynchrone après le mélange
+        setTimeout(() => {
+            this.updateMinMovesCount();
+            if (typeof puzzleChart !== 'undefined') {
+                puzzleChart.resetChart();
+                this.updateChartData();
+            }
+        }, 0);
     }
 
     isSolvable() {
@@ -156,6 +201,85 @@ class PuzzleGame {
             this.updateStatus("Impossible de résoudre ce puzzle.");
             this.issolving = false;
         }
+    }
+
+    // Méthode optimisée pour calculer le minimum de coups
+    calculateMinMoves() {
+        if (this.isWon()) {
+            return 0;
+        }
+        
+        // Utiliser une clé unique pour le cache basée sur l'état actuel
+        const stateKey = JSON.stringify(this.grid);
+        
+        // Vérifier si nous avons déjà calculé la solution pour cet état
+        if (this.solutionCache.has(stateKey)) {
+            return this.solutionCache.get(stateKey);
+        }
+        
+        // Limiter la profondeur de recherche pour une exécution plus rapide
+        const solution = this.aStarLimited(25); // Limite à 25 mouvements maximum
+        const moveCount = solution ? solution.length : 0;
+        
+        // Mettre en cache le résultat
+        this.solutionCache.set(stateKey, moveCount);
+        
+        return moveCount;
+    }
+    
+    // Version plus rapide et limitée de l'algorithme A*
+    aStarLimited(maxDepth) {
+        const openSet = [{state: [...this.grid], path: [], f: 0, g: 0}];
+        const closedSet = new Set();
+        let nodesExplored = 0;
+        const maxNodes = 5000; // Limite du nombre de nœuds à explorer
+
+        while (openSet.length > 0 && nodesExplored < maxNodes) {
+            openSet.sort((a, b) => a.f - b.f);
+            const current = openSet.shift();
+            nodesExplored++;
+
+            if (JSON.stringify(current.state) === JSON.stringify(this.goalState)) {
+                return current.path;
+            }
+            
+            // Ne pas explorer trop profondément
+            if (current.g >= maxDepth) continue;
+
+            closedSet.add(JSON.stringify(current.state));
+
+            const neighbors = this.getNeighbors(current.state);
+            for (const neighbor of neighbors) {
+                const stateStr = JSON.stringify(neighbor.state);
+                if (closedSet.has(stateStr)) continue;
+
+                const g = current.g + 1;
+                const h = this.manhattanDistance(neighbor.state);
+                const f = g + h;
+
+                // Simplifier la recherche pour améliorer les performances
+                const existingNodeIndex = openSet.findIndex(node => JSON.stringify(node.state) === stateStr);
+                if (existingNodeIndex !== -1 && g < openSet[existingNodeIndex].g) {
+                    openSet[existingNodeIndex].g = g;
+                    openSet[existingNodeIndex].f = f;
+                    openSet[existingNodeIndex].path = [...current.path, neighbor.move];
+                } else if (existingNodeIndex === -1) {
+                    openSet.push({
+                        state: neighbor.state,
+                        path: [...current.path, neighbor.move],
+                        f: f,
+                        g: g
+                    });
+                }
+            }
+        }
+        
+        // Si on ne trouve pas de solution complète, utiliser une estimation
+        if (openSet.length > 0) {
+            return openSet[0].path;
+        }
+        
+        return null;
     }
 
     aStar() {
@@ -267,6 +391,23 @@ class PuzzleGame {
         }
     }
 
+    updateMinMovesCount() {
+        // Utiliser requestAnimationFrame pour s'assurer que l'UI est mise à jour avant le calcul
+        requestAnimationFrame(() => {
+            this.minMoves = this.calculateMinMoves();
+            document.getElementById('minMoves').textContent = this.minMoves;
+        });
+    }
+    
+    updateChartData() {
+        // Mettre à jour le graphique de façon non-bloquante
+        if (typeof puzzleChart !== 'undefined') {
+            requestAnimationFrame(() => {
+                puzzleChart.updateChart(this.moves, this.minMoves);
+            });
+        }
+    }
+
     updateMoveCount() {
         document.getElementById('moveCount').textContent = this.moves;
     }
@@ -303,7 +444,11 @@ class PuzzleGame {
     }
 }
 
-// Initialize the game when the DOM is loaded
+// Initialize the game and chart when the DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     const game = new PuzzleGame();
+    // Initialize the chart after the game
+    puzzleChart = new PuzzleChart();
+    // Add initial data point
+    game.updateChartData();
 });

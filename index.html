@@ -5,44 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>8-Puzzle Game</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>🧩 8-Puzzle</h1>
         
-        <div class="puzzle-container">
-            <div class="puzzle-grid" id="puzzleGrid"></div>
+        <div class="game-section">
+            <div class="puzzle-container">
+                <div class="puzzle-grid" id="puzzleGrid"></div>
+            </div>
+
+            <div class="info">
+                <span>Mouvements: <span id="moveCount">0</span></span>
+                <span>Minimum: <span id="minMoves">0</span></span>
+                <span>Temps: <span id="timer">00:00</span></span>
+            </div>
+
+            <div class="status" id="status">Cliquez sur une tuile adjacente à l'espace vide pour la déplacer</div>
+
+            <div class="controls">
+                <button class="btn-primary" id="shuffleBtn">🔄 Mélanger</button>
+                <button class="btn-secondary" id="solveBtn">🤖 Résoudre</button>
+                <button class="btn-danger" id="stopBtn">⏹️ Arrêter</button>
+            </div>
+            
+            <div class="goal-state">
+                <h3>État final :</h3>
+                <div class="goal-grid">
+                    <div class="goal-tile">1</div>
+                    <div class="goal-tile">2</div>
+                    <div class="goal-tile">3</div>
+                    <div class="goal-tile">4</div>
+                    <div class="goal-tile">5</div>
+                    <div class="goal-tile">6</div>
+                    <div class="goal-tile">7</div>
+                    <div class="goal-tile">8</div>
+                    <div class="goal-tile empty"></div>
+                </div>
+            </div>
         </div>
-
-        <div class="info">
-            <span>Mouvements: <span id="moveCount">0</span></span>
-            <span>Temps: <span id="timer">00:00</span></span>
-        </div>
-
-        <div class="status" id="status">Cliquez sur une tuile adjacente à l'espace vide pour la déplacer</div>
-
-        <div class="controls">
-            <button class="btn-primary" id="shuffleBtn">🔄 Mélanger</button>
-            <button class="btn-secondary" id="solveBtn">🤖 Résoudre</button>
-            <button class="btn-danger" id="stopBtn">⏹️ Arrêter</button>
-        </div>
-
-        <div class="goal-state">
-            <h3>État final :</h3>
-            <div class="goal-grid">
-                <div class="goal-tile">1</div>
-                <div class="goal-tile">2</div>
-                <div class="goal-tile">3</div>
-                <div class="goal-tile">4</div>
-                <div class="goal-tile">5</div>
-                <div class="goal-tile">6</div>
-                <div class="goal-tile">7</div>
-                <div class="goal-tile">8</div>
-                <div class="goal-tile empty"></div>
+        
+        <div class="stats-section">
+            <div class="chart-container">
+                <canvas id="movesChart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- Load in correct order: first define the variable, then Chart class, then use it -->
     <script src="assets/js/script.js"></script>
+    <script src="assets/js/chart.js"></script>
 </body>
 </html>
