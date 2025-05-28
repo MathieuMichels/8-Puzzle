@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-Puzzle Game</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.svg">
+    <meta name="theme-color" content="#3498db">
+    <link rel="manifest" href="manifest.json">
+    <meta name="description" content="Jeu de puzzle à 8 pièces avec différents niveaux de difficulté">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🧩 8-Puzzles </h1>
+        
+        <div class="game-section">
+            <div class="puzzle-container">
+                <div class="puzzle-grid" id="puzzleGrid"></div>
+            </div>
+
+            <div class="info">
+                <span>Mouvements: <span id="moveCount">0</span></span>
+                <span>Minimum: <span id="minMoves">0</span></span>
+                <span>Temps: <span id="timer">00:00</span></span>
+            </div>
+
+            <div class="status" id="status">Cliquez sur une tuile adjacente à l'espace vide pour la déplacer</div>
+
+            <div class="difficulty-selector">
+                <label for="difficulty">Difficulté :</label>
+                <select id="difficulty" class="difficulty-select">
+                    <option value="very-easy">Très facile (< 5 coups)</option>
+                    <option value="easy">Facile (5-9 coups)</option>
+                    <option value="medium" selected>Moyen (10-14 coups)</option>
+                    <option value="hard">Difficile (15-19 coups)</option>
+                    <option value="very-hard">Très difficile (20-24 coups)</option>
+                    <option value="extreme">Extrême (25+ coups)</option>
+                    <option value="custom">Personnalisé</option>
+                    <option value="random">Aléatoire</option>
+                </select>
+                <div id="customMovesContainer" style="display: none; margin-top: 10px;">
+                    <label for="customMoves">Nombre de coups:</label>
+                    <input type="number" id="customMoves" min="0" max="31" value="15" style="width: 60px;">
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-primary" id="shuffleBtn">🔄 Mélanger</button>
+                <button class="btn-secondary" id="solveBtn">🤖 Résoudre</button>
+                <button class="btn-danger" id="stopBtn">⏹️ Arrêter</button>
+            </div>
+            
+            <div class="goal-state">
+                <h3>État final :</h3>
+                <div class="goal-grid">
+                    <div class="goal-tile">1</div>
+                    <div class="goal-tile">2</div>
+                    <div class="goal-tile">3</div>
+                    <div class="goal-tile">4</div>
+                    <div class="goal-tile">5</div>
+                    <div class="goal-tile">6</div>
+                    <div class="goal-tile">7</div>
+                    <div class="goal-tile">8</div>
+                    <div class="goal-tile empty"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-section">
+            <div class="chart-container">
+                <canvas id="movesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load in correct order: first define the variable, then Chart class, then use it -->
+    <script src="assets/js/script.js"></script>
+    <script src="assets/js/chart.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        // État de la connexion
+        let appIsOnline = navigator.onLine;
+        
+        // Créer une notification pour le statut hors ligne
+        function createOfflineNotification() {
+            const offlineDiv = document.createElement('div');
+            offlineDiv.id = 'offline-notification';
+            offlineDiv.style.position = 'fixed';
+            offlineDiv.style.top = '0';
+            offlineDiv.style.left = '0';
+            offlineDiv.style.right = '0';
+            offlineDiv.style.backgroundColor = '#f44336';
+            offlineDiv.style.color = 'white';
+            offlineDiv.style.textAlign = 'center';
+            offlineDiv.style.padding = '12px';
+            offlineDiv.style.zIndex = '9999';
+            offlineDiv.style.display = 'none';
+            offlineDiv.style.transition = 'all 0.3s ease-in-out';
+            offlineDiv.textContent = 'Vous êtes hors ligne. L\'application fonctionne en mode hors connexion.';
+            document.body.appendChild(offlineDiv);
+            return offlineDiv;
+        }
+        
+        // Notification pour les mises à jour disponibles
+        function createUpdateNotification() {
+            const updateDiv = document.createElement('div');
+            updateDiv.id = 'update-notification';
+            updateDiv.style.position = 'fixed';
+            updateDiv.style.bottom = '20px';
+            updateDiv.style.left = '50%';
+            updateDiv.style.transform = 'translateX(-50%)';
+            updateDiv.style.backgroundColor = '#4CAF50';
+            updateDiv.style.color = 'white';
+            updateDiv.style.textAlign = 'center';
+            updateDiv.style.padding = '15px 20px';
+            updateDiv.style.borderRadius = '5px';
+            updateDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+            updateDiv.style.zIndex = '9999';
+            updateDiv.style.display = 'none';
+            updateDiv.innerHTML = 'Une nouvelle version est disponible! <button id="update-button" style="margin-left: 10px; background: white; color: #4CAF50; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Mettre à jour</button>';
+            document.body.appendChild(updateDiv);
+            
+            document.getElementById('update-button').addEventListener('click', () => {
+                if (registration && registration.waiting) {
+                    // Envoyer un message au worker en attente
+                    registration.waiting.postMessage({ action: 'skipWaiting' });
+                    updateDiv.style.display = 'none';
+                    
+                    // Afficher un message de chargement
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.style.position = 'fixed';
+                    loadingDiv.style.bottom = '20px';
+                    loadingDiv.style.left = '50%';
+                    loadingDiv.style.transform = 'translateX(-50%)';
+                    loadingDiv.style.backgroundColor = '#2196F3';
+                    loadingDiv.style.color = 'white';
+                    loadingDiv.style.padding = '15px 20px';
+                    loadingDiv.style.borderRadius = '5px';
+                    loadingDiv.style.zIndex = '9999';
+                    loadingDiv.textContent = 'Mise à jour en cours...';
+                    document.body.appendChild(loadingDiv);
+                    
+                    // Supprimer le message après 3 secondes
+                    setTimeout(() => {
+                        if (loadingDiv.parentNode) {
+                            loadingDiv.parentNode.removeChild(loadingDiv);
+                        }
+                    }, 3000);
+                }
+            });
+            
+            return updateDiv;
+        }
+        
+        // Initialiser les notifications
+        const offlineNotification = createOfflineNotification();
+        const updateNotification = createUpdateNotification();
+        
+        // Mettre à jour l'affichage du statut de connexion
+        function updateOnlineStatus() {
+            appIsOnline = navigator.onLine;
+            if (appIsOnline) {
+                offlineNotification.style.display = 'none';
+            } else {
+                offlineNotification.style.display = 'block';
+            }
+        }
+        
+        // Écouter les changements de connectivité
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Variable pour stocker la référence d'enregistrement
+        let registration;
+        
+        if ('serviceWorker' in navigator) {
+            console.log('🎯 Service Worker supporté');
+            
+            function registerServiceWorker() {
+                console.log('📄 Enregistrement Service Worker démarré');
+                
+                navigator.serviceWorker.register('./service-worker.js', {
+                    scope: './'
+                })
+                .then(reg => {
+                    registration = reg;
+                    console.log('✅ Service Worker enregistré avec succès!');
+                    console.log('🎯 Scope:', reg.scope);
+                    console.log('📄 Script URL:', reg.active?.scriptURL || 'En cours d\'installation...');
+                    
+                    // Gestion des mises à jour
+                    reg.addEventListener('updatefound', () => {
+                        console.log('🔄 Nouvelle version détectée!');
+                        const newWorker = reg.installing;
+                        
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('🆕 Nouvelle version prête!');
+                                updateNotification.style.display = 'block';
+                            }
+                        });
+                    });
+                    
+                    // Vérification périodique des mises à jour
+                    setInterval(() => {
+                        if (registration) {
+                            registration.update().catch(console.error);
+                        }
+                    }, 60000);
+                    
+                    return reg.update();
+                })
+                .catch(error => {
+                    console.error('❌ Échec de l\'enregistrement du Service Worker:', error);
+                });
+            }
+            
+            // Enregistrer immédiatement si le document est prêt, sinon attendre
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', registerServiceWorker);
+            } else {
+                registerServiceWorker();
+            }
+        } else {
+            console.log('❌ Service Worker non supporté');
+        }
+                    .then(() => {
+                        console.log('Vérification de mise à jour terminée');
+                        
+                        // Vérifier les mises à jour périodiquement
+                        setInterval(() => {
+                            if (registration) {
+                                registration.update().catch(console.error);
+                            }
+                        }, 60000); // Vérifier toutes les minutes
+                        
+                        // Vérifier les mises à jour disponibles
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            console.log('Nouvelle version détectée!');
+                            
+                            // Surveiller les changements d'état du nouveau worker
+                            newWorker.addEventListener('statechange', () => {
+                                console.log('État du nouveau worker:', newWorker.state);
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Une mise à jour est disponible
+                                    console.log('Nouvelle version prête à être installée!');
+                                    updateNotification.style.display = 'block';
+                                }
+                            });
+                        });
+                        
+                        // Vérifier immédiatement s'il y a une mise à jour en attente
+                        if (reg.waiting) {
+                            console.log('Mise à jour déjà en attente');
+                            updateNotification.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.log('Échec de l\'enregistrement du Service Worker:', error);
+                    });
+                    
+                // Écouter les messages du service worker
+                navigator.serviceWorker.addEventListener('message', event => {
+                    console.log('Message reçu du Service Worker:', event.data);
+                    if (event.data.type === 'OFFLINE') {
+                        appIsOnline = false;
+                        offlineNotification.style.display = 'block';
+                    } else if (event.data.type === 'ONLINE') {
+                        appIsOnline = true;
+                        offlineNotification.style.display = 'none';
+                    } else if (event.data.type === 'SW_UPDATED') {
+                        console.log('Service Worker mis à jour');
+                    }
+                });
+                
+                // Écouter les événements de contrôle (après skipWaiting)
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('Nouveau contrôleur Service Worker détecté');
+                    // Rafraîchir pour utiliser la nouvelle version
+                    window.location.reload();
+                });
+                
+                // Vérifier périodiquement l'état de connexion
+                setInterval(() => {
+                    if (registration) {
+                        registration.active?.postMessage({ action: 'checkOnlineStatus' });
+                    }
+                }, 30000); // Vérifier toutes les 30 secondes
+            });
+        }
+    </script>
+    
+    <!-- Installation PWA prompt -->
+    <div id="installPrompt" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #3498db; color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000;">
+        <p style="margin: 0 0 10px 0">Installez 8-Puzzle sur votre appareil!</p>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="installBtn" style="background: white; color: #3498db; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Installer</button>
+            <button id="dismissBtn" style="background: transparent; color: white; border: 1px solid white; padding: 8px 15px; margin-left: 10px; border-radius: 4px; cursor: pointer;">Plus tard</button>
+        </div>
+    </div>
+    
+    <script>
+        // Gestion de l'installation PWA
+        let deferredPrompt;
+        const installPrompt = document.getElementById('installPrompt');
+        const installBtn = document.getElementById('installBtn');
+        const dismissBtn = document.getElementById('dismissBtn');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Empêcher l'affichage automatique de la boîte de dialogue
+            e.preventDefault();
+            // Stocker l'événement pour une utilisation ultérieure
+            deferredPrompt = e;
+            // Afficher notre bouton personnalisé
+            installPrompt.style.display = 'block';
+        });
+        
+        installBtn.addEventListener('click', async () => {
+            // Masquer notre interface utilisateur personnalisée
+            installPrompt.style.display = 'none';
+            // Afficher la boîte de dialogue d'installation
+            deferredPrompt.prompt();
+            // Attendre la décision de l'utilisateur
+            const { outcome } = await deferredPrompt.userChoice;
+            // On n'a plus besoin de conserver l'événement
+            deferredPrompt = null;
+        });
+        
+        dismissBtn.addEventListener('click', () => {
+            // Masquer l'interface utilisateur d'installation
+            installPrompt.style.display = 'none';
+            // L'utilisateur peut toujours installer via le menu du navigateur
+        });
+        
+        // Si l'application est déjà installée, l'événement 'appinstalled' sera déclenché
+        window.addEventListener('appinstalled', (evt) => {
+            // L'application a été installée avec succès
+            console.log('8-Puzzle installé avec succès');
+        });
+    </script>
+</body>
+</html>

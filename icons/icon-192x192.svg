@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fond -->
+  <rect width="512" height="512" rx="60" fill="#3498db"/>
+  
+  <!-- Grille de puzzle -->
+  <g transform="translate(56, 56) scale(0.78)">
+    <!-- Case 1 -->
+    <rect x="10" y="10" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="85" y="105" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">1</text>
+    
+    <!-- Case 2 -->
+    <rect x="170" y="10" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="245" y="105" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">2</text>
+    
+    <!-- Case 3 -->
+    <rect x="330" y="10" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="405" y="105" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">3</text>
+    
+    <!-- Case 4 -->
+    <rect x="10" y="170" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="85" y="265" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">4</text>
+    
+    <!-- Case 5 -->
+    <rect x="170" y="170" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="245" y="265" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">5</text>
+    
+    <!-- Case 6 -->
+    <rect x="330" y="170" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="405" y="265" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">6</text>
+    
+    <!-- Case 7 -->
+    <rect x="10" y="330" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="85" y="425" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">7</text>
+    
+    <!-- Case 8 -->
+    <rect x="170" y="330" width="150" height="150" rx="15" fill="#ffffff" stroke="#2980b9" stroke-width="6"/>
+    <text x="245" y="425" font-family="Arial" font-size="90" font-weight="bold" text-anchor="middle" fill="#2c3e50">8</text>
+    
+    <!-- Case vide -->
+    <rect x="330" y="330" width="150" height="150" rx="15" fill="#3498db" stroke="#2980b9" stroke-width="6"/>
+  </g>
+</svg>

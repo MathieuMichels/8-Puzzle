@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Offline Mode - 8-Puzzle PWA</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #b8daff; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Mode Hors Ligne - 8-Puzzle PWA</h1>
+    
+    <div class="test-container">
+        <h2>🎯 Objectif du Test</h2>
+        <p>Vérifier que l'application fonctionne parfaitement hors ligne, même quand elle est fermée et rouverte sans connexion internet.</p>
+    </div>
+
+    <div class="test-container">
+        <h2>📋 Instructions de Test</h2>
+        
+        <div class="step">
+            <h3>Étape 1: Préparation</h3>
+            <p>1. Assurez-vous que vous êtes connecté à internet</p>
+            <p>2. Ouvrez <a href="/" target="_blank">l'application principale</a></p>
+            <p>3. Attendez que le Service Worker soit complètement installé (vérifiez la console)</p>
+            <p>4. Jouez quelques coups pour vérifier le fonctionnement normal</p>
+        </div>
+
+        <div class="step">
+            <h3>Étape 2: Test de mise en cache</h3>
+            <p>1. Ouvrez les DevTools (F12)</p>
+            <p>2. Allez dans l'onglet Application/Storage > Cache Storage</p>
+            <p>3. Vérifiez que "8puzzle-cache-v6" contient tous les fichiers critiques</p>
+            <p>4. Allez dans Service Workers et vérifiez l'état "Activated"</p>
+        </div>
+
+        <div class="step">
+            <h3>Étape 3: Test hors ligne immédiat</h3>
+            <p>1. Dans DevTools > Network, activez "Offline"</p>
+            <p>2. Rafraîchissez la page (F5)</p>
+            <p>3. ✅ L'application doit fonctionner parfaitement</p>
+            <p>4. Testez les fonctionnalités: nouveau jeu, déplacements, résolution</p>
+        </div>
+
+        <div class="step">
+            <h3>Étape 4: Test fermeture/réouverture (critique)</h3>
+            <p>1. Fermez complètement l'onglet/fenêtre</p>
+            <p>2. Désactivez votre connexion réseau (WiFi/Ethernet)</p>
+            <p>3. Rouvrez un nouvel onglet</p>
+            <p>4. Tapez: <code>localhost:8001</code></p>
+            <p>5. ✅ L'application doit se charger et fonctionner parfaitement</p>
+        </div>
+
+        <div class="step">
+            <h3>Étape 5: Test de données partielles</h3>
+            <p>1. Réactivez la connexion</p>
+            <p>2. Chargez l'application</p>
+            <p>3. Désactivez la connexion</p>
+            <p>4. Testez la génération de graphiques et statistiques</p>
+            <p>5. ✅ Doit fonctionner avec les données en cache</p>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔧 Tests Automatiques</h2>
+        
+        <button onclick="testServiceWorker()">Test Service Worker</button>
+        <button onclick="testCache()">Test Cache</button>
+        <button onclick="testNetwork()">Test Statut Réseau</button>
+        <button onclick="clearTests()">Effacer Logs</button>
+        
+        <div id="test-results"></div>
+        <div id="test-log" class="log"></div>
+    </div>
+
+    <script>
+        const results = document.getElementById('test-results');
+        const testLog = document.getElementById('test-log');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            testLog.innerHTML += logEntry + '\n';
+            testLog.scrollTop = testLog.scrollHeight;
+            console.log(logEntry);
+        }
+        
+        function showResult(message, type) {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function clearTests() {
+            results.innerHTML = '';
+            testLog.innerHTML = '';
+        }
+        
+        async function testServiceWorker() {
+            log('🔍 Test du Service Worker...');
+            
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        showResult('✅ Service Worker: Enregistré et actif', 'success');
+                        log(`Service Worker scope: ${registration.scope}`);
+                        log(`Service Worker état: ${registration.active ? 'Actif' : 'Inactif'}`);
+                        
+                        // Test de communication
+                        if (registration.active) {
+                            registration.active.postMessage({
+                                type: 'TEST_MESSAGE',
+                                timestamp: Date.now()
+                            });
+                            log('Message envoyé au Service Worker');
+                        }
+                    } else {
+                        showResult('❌ Service Worker: Non enregistré', 'error');
+                        log('Aucun Service Worker trouvé');
+                    }
+                } catch (error) {
+                    showResult('❌ Service Worker: Erreur', 'error');
+                    log(`Erreur: ${error.message}`);
+                }
+            } else {
+                showResult('❌ Service Worker: Non supporté', 'error');
+                log('Service Worker non supporté dans ce navigateur');
+            }
+        }
+        
+        async function testCache() {
+            log('🗃️ Test du cache...');
+            
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    log(`Caches trouvés: ${cacheNames.join(', ')}`);
+                    
+                    const targetCache = cacheNames.find(name => name.includes('8puzzle-cache'));
+                    if (targetCache) {
+                        const cache = await caches.open(targetCache);
+                        const cachedRequests = await cache.keys();
+                        
+                        showResult(`✅ Cache: ${cachedRequests.length} ressources en cache`, 'success');
+                        log(`Cache actuel: ${targetCache}`);
+                        
+                        const criticalFiles = ['/', '/index.html', '/service-worker.js', '/manifest.json'];
+                        for (const file of criticalFiles) {
+                            const response = await cache.match(file);
+                            if (response) {
+                                log(`✅ ${file} en cache`);
+                            } else {
+                                log(`❌ ${file} manquant`);
+                            }
+                        }
+                    } else {
+                        showResult('❌ Cache: Cache 8-puzzle non trouvé', 'error');
+                        log('Aucun cache 8-puzzle trouvé');
+                    }
+                } catch (error) {
+                    showResult('❌ Cache: Erreur d\'accès', 'error');
+                    log(`Erreur cache: ${error.message}`);
+                }
+            } else {
+                showResult('❌ Cache: API non supportée', 'error');
+                log('Cache API non supportée');
+            }
+        }
+        
+        function testNetwork() {
+            log('🌐 Test du statut réseau...');
+            
+            const online = navigator.onLine;
+            if (online) {
+                showResult('🌐 Réseau: En ligne', 'success');
+                log('Connexion internet active');
+            } else {
+                showResult('📴 Réseau: Hors ligne', 'warning');
+                log('Mode hors ligne détecté');
+            }
+            
+            // Test de connectivité réelle
+            fetch('/?test=' + Date.now(), { method: 'HEAD' })
+                .then(() => {
+                    showResult('✅ Connectivité: Serveur accessible', 'success');
+                    log('Serveur accessible');
+                })
+                .catch(error => {
+                    showResult('❌ Connectivité: Serveur inaccessible', 'error');
+                    log(`Erreur connectivité: ${error.message}`);
+                });
+        }
+        
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            log('🚀 Page de test chargée');
+            setTimeout(() => {
+                testServiceWorker();
+                testCache();
+                testNetwork();
+            }, 1000);
+        });
+        
+        // Écouter les messages du Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', event => {
+                log(`📨 Message SW: ${JSON.stringify(event.data)}`);
+            });
+        }
+        
+        // Surveiller les changements de connectivité
+        window.addEventListener('online', () => {
+            log('🌐 Connexion rétablie');
+            showResult('🌐 Réseau: Connexion rétablie', 'success');
+        });
+        
+        window.addEventListener('offline', () => {
+            log('📴 Connexion perdue');
+            showResult('📴 Réseau: Connexion perdue', 'warning');
+        });
+    </script>
+</body>
+</html>

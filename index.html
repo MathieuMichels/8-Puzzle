@@ -5,12 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>8-Puzzle Game</title>
     <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.svg">
+    <meta name="theme-color" content="#3498db">
+    <link rel="manifest" href="manifest.json">
+    <meta name="description" content="Jeu de puzzle à 8 pièces avec différents niveaux de difficulté">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🧩 8-Puzzle</h1>
+        <h1>🧩 8-Puzzles </h1>
         
         <div class="game-section">
             <div class="puzzle-container">
@@ -72,8 +76,149 @@
         </div>
     </div>
 
-    <!-- Load in correct order: first define the variable, then Chart class, then use it -->
+    <!-- Notifications PWA -->
+    <div id="offline-notification" style="display: none; position: fixed; top: 0; left: 0; right: 0; background: #f44336; color: white; text-align: center; padding: 10px; z-index: 1000;">
+        ⚠️ Vous êtes hors ligne.
+    </div>
+    
+    <div id="update-notification" style="display: none; position: fixed; top: 50px; left: 0; right: 0; background: #4CAF50; color: white; text-align: center; padding: 10px; z-index: 1000;">
+        🆕 Nouvelle version disponible! 
+        <button onclick="location.reload()" style="margin-left: 10px; padding: 5px 10px; background: white; color: #4CAF50; border: none; border-radius: 3px; cursor: pointer;">
+            Mettre à jour
+        </button>
+    </div>
+
+    <div id="install-prompt" style="display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; background: #2196F3; color: white; padding: 15px; border-radius: 8px; z-index: 1000;">
+        <div>📱 Installer l'application 8-Puzzle sur votre appareil</div>
+        <div style="margin-top: 10px;">
+            <button id="install-btn" style="padding: 8px 16px; background: white; color: #2196F3; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                Installer
+            </button>
+            <button id="dismiss-btn" style="padding: 8px 16px; background: transparent; color: white; border: 1px solid white; border-radius: 4px; cursor: pointer;">
+                Plus tard
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="assets/js/script.js"></script>
     <script src="assets/js/chart.js"></script>
+    
+    <!-- PWA Service Worker -->
+    <script>
+        console.log('🚀 Initialisation PWA...');
+        
+        // Variables globales
+        let registration = null;
+        let deferredPrompt = null;
+        
+        // Éléments UI
+        const offlineNotification = document.getElementById('offline-notification');
+        const updateNotification = document.getElementById('update-notification');
+        const installPrompt = document.getElementById('install-prompt');
+        const installBtn = document.getElementById('install-btn');
+        const dismissBtn = document.getElementById('dismiss-btn');
+        
+        // Gestion du statut de connexion
+        function updateOnlineStatus() {
+            if (navigator.onLine) {
+                offlineNotification.style.display = 'none';
+                console.log('🌐 En ligne');
+            } else {
+                offlineNotification.style.display = 'block';
+                console.log('📴 Hors ligne');
+            }
+        }
+        
+        // Écouter les changements de connectivité
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Vérifier l'état initial
+        updateOnlineStatus();
+        
+        // Enregistrement du Service Worker
+        if ('serviceWorker' in navigator) {
+            console.log('✅ Service Worker supporté');
+            
+            navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+                .then(reg => {
+                    registration = reg;
+                    console.log('🎉 Service Worker enregistré!', reg.scope);
+                    
+                    // Gestion des mises à jour
+                    reg.addEventListener('updatefound', () => {
+                        console.log('🔄 Mise à jour trouvée');
+                        const newWorker = reg.installing;
+                        
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('✨ Nouvelle version prête');
+                                updateNotification.style.display = 'block';
+                            }
+                        });
+                    });
+                    
+                    // Vérifier s'il y a une mise à jour en attente
+                    if (reg.waiting) {
+                        console.log('⏳ Mise à jour en attente');
+                        updateNotification.style.display = 'block';
+                    }
+                    
+                    // Vérification périodique des mises à jour
+                    setInterval(() => {
+                        if (registration) {
+                            registration.update().catch(e => console.warn('Erreur mise à jour:', e));
+                        }
+                    }, 60000);
+                })
+                .catch(error => {
+                    console.error('❌ Échec enregistrement Service Worker:', error);
+                });
+                
+            // Écouter les messages du Service Worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                console.log('📨 Message SW:', event.data);
+                
+                if (event.data.type === 'SW_ACTIVATED') {
+                    console.log('🔄 Service Worker activé, version:', event.data.version);
+                }
+            });
+        } else {
+            console.log('❌ Service Worker non supporté');
+        }
+        
+        // Gestion de l'installation PWA
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('📱 PWA installable');
+            e.preventDefault();
+            deferredPrompt = e;
+            installPrompt.style.display = 'block';
+        });
+        
+        installBtn.addEventListener('click', async () => {
+            console.log('👆 Installation demandée');
+            installPrompt.style.display = 'none';
+            
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log('📱 Résultat installation:', outcome);
+                deferredPrompt = null;
+            }
+        });
+        
+        dismissBtn.addEventListener('click', () => {
+            console.log('❌ Installation refusée');
+            installPrompt.style.display = 'none';
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA installée avec succès!');
+            deferredPrompt = null;
+        });
+        
+        console.log('✅ PWA initialisée');
+    </script>
 </body>
 </html>
