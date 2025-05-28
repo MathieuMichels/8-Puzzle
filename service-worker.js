@@ -1,7 +1,7 @@
 console.log('🚀 Service Worker: Script loaded');
 
 const CACHE_NAME = '8puzzle-cache-v6';
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 
 const CRITICAL_RESOURCES = [
   './',
