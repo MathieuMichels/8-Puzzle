@@ -1,0 +1,99 @@
+# Configuration pour PWA 8-Puzzle
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Si le fichier ou le répertoire demandé n'existe pas
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Redirige toutes les requêtes vers index.html pour la navigation SPA
+    RewriteRule ^(.*)$ index.html [L]
+</IfModule>
+
+# Définir les types MIME
+<IfModule mod_mime.c>
+    # PWA et Web App Manifest
+    AddType application/manifest+json .webmanifest
+    AddType application/manifest+json .json
+    
+    # Service Worker
+    AddType application/javascript .js
+    
+    # SVG
+    AddType image/svg+xml .svg
+    
+    # Fichiers CSS et JS
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
+
+# Activer la mise en cache du navigateur
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Cache par défaut
+    ExpiresDefault "access plus 1 hour"
+    
+    # Cache des médias statiques
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/ico "access plus 1 year"
+    
+    # Cache des ressources statiques
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    
+    # Manifeste et Service Worker - cache court pour permettre les mises à jour
+    ExpiresByType application/manifest+json "access plus 1 day"
+    
+    # HTML - pas de cache pour permettre les mises à jour
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Headers de sécurité et PWA
+<IfModule mod_headers.c>
+    # Headers pour Service Worker
+    <FilesMatch "service-worker\.js$">
+        Header set Service-Worker-Allowed "/"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+    
+    # Headers pour le manifeste
+    <FilesMatch "manifest\.json$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+    
+    # Headers de sécurité
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Headers PWA
+    Header always set X-UA-Compatible "IE=edge"
+</IfModule>
+
+# Activer la compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/manifest+json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# Empêcher l'accès direct aux fichiers sensibles
+<FilesMatch "^\.(htaccess|git|env)">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Désactiver l'indexation des répertoires
+Options -Indexes
+
+# Gestion des erreurs personnalisées
+ErrorDocument 404 /index.html
