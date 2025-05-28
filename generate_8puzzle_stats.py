@@ -197,7 +197,7 @@ def save_distribution(min_moves_dict, filename="8puzzle_distribution.txt"):
     }
     
     with open(json_filename, 'w') as f:
-        json.dump(json_data, f, indent=2)
+        json.dump(json_data, f, separators=(',', ':'))
     
     print(f"Données JSON enregistrées dans {json_filename}")
 
@@ -210,7 +210,7 @@ def save_full_data(min_moves_dict, filename="8puzzle_full_data.json"):
     json_data = {str(list(state)): moves for state, moves in min_moves_dict.items()}
     
     with open(filename, 'w') as f:
-        json.dump(json_data, f)
+        json.dump(json_data, f, separators=(',', ':'))
     
     print(f"Données complètes enregistrées dans {filename}")
 
@@ -246,7 +246,7 @@ def save_moves_by_count(min_moves_dict, output_dir="assets/move_data"):
         }
         
         with open(filename, 'w') as f:
-            json.dump(json_data, f, indent=2)
+            json.dump(json_data, f, separators=(',', ':'))
         
         print(f"Fichier pour {moves} mouvements enregistré: {filename} ({len(states)} états)")
     
@@ -260,7 +260,7 @@ def save_moves_by_count(min_moves_dict, output_dir="assets/move_data"):
     
     index_filename = os.path.join(output_dir, "index.json")
     with open(index_filename, 'w') as f:
-        json.dump(index_data, f, indent=2)
+        json.dump(index_data, f, separators=(',', ':'))
     
     print(f"Index des fichiers enregistré: {index_filename}")
 

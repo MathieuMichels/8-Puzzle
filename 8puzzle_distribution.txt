@@ -1,5 +1,5 @@
 Distribution des états du 8-Puzzle par nombre minimum de mouvements
-Date de génération: 2025-05-28 21:59:07
+Date de génération: 2025-05-28 22:23:12
 Nombre total d'états: 181440
 Nombre maximum de mouvements: 31
 
