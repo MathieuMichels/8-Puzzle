@@ -233,20 +233,6 @@ Adjust AI performance in `script.js`:
 
 ## 🛠️ Development
 
-### Building Pre-generated Data
-The `assets/move_data/` files contain pre-computed puzzle states. To regenerate:
-
-1. Use the built-in puzzle generator
-2. Extract states for each difficulty level
-3. Format as JSON with structure:
-   ```json
-   {
-     "moves": 5,
-     "count": 20,
-     "states": [[1,5,2,4,8,3,7,0,6], ...]
-   }
-   ```
-
 ### Testing
 - Test across different browsers and devices
 - Verify PWA installation and offline functionality
@@ -260,39 +246,11 @@ The app uses semantic versioning and automatic update detection:
 - Users receive notifications for new versions
 - Background sync ensures latest features
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Implement your changes
-4. Add tests if applicable
-5. Submit a pull request
-
 ### Areas for Contribution
 - Additional solving algorithms (BFS, DFS variants)
 - New difficulty generation strategies
 - UI/UX improvements
 - Performance optimizations
 - Mobile-specific features
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 🙏 Acknowledgments
-
-- Chart.js for visualization
-- A* algorithm research papers
-- PWA best practices documentation
-- Web performance optimization guides
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Check existing documentation
-- Review the algorithm explanations
-
----
 
 **Enjoy solving puzzles! 🧩**
