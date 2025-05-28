@@ -1,10 +1,8 @@
-// Service Worker for 8-Puzzle PWA
-console.log('🚀 Service Worker: Script chargé');
+console.log('🚀 Service Worker: Script loaded');
 
 const CACHE_NAME = '8puzzle-cache-v6';
 const APP_VERSION = '1.4.0';
 
-// Ressources critiques (nécessaires pour le fonctionnement hors ligne)
 const CRITICAL_RESOURCES = [
   './',
   'index.html',
@@ -16,7 +14,6 @@ const CRITICAL_RESOURCES = [
   'icons/icon-512x512.svg'
 ];
 
-// Ressources secondaires (données de jeu - peuvent être chargées à la demande)
 const SECONDARY_RESOURCES = [
   'assets/move_data/index.json',
   'assets/move_data/moves_0.json',
@@ -53,23 +50,20 @@ const SECONDARY_RESOURCES = [
   'assets/move_data/moves_31.json'
 ];
 
-// Ressources externes
 const EXTERNAL_RESOURCES = [
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Installation du Service Worker
 self.addEventListener('install', event => {
-  console.log('📦 Service Worker: Installation démarrée');
+  console.log('📦 Service Worker: Installation started');
   
   event.waitUntil(
     (async () => {
       try {
         const cache = await caches.open(CACHE_NAME);
-        console.log('📂 Cache ouvert:', CACHE_NAME);
+        console.log('📂 Cache opened:', CACHE_NAME);
         
-        // Mettre en cache les ressources critiques d'abord
-        console.log('🔄 Mise en cache des ressources critiques...');
+        console.log('🔄 Caching critical resources...');
         const criticalResults = await Promise.allSettled(
           CRITICAL_RESOURCES.map(async url => {
             try {
@@ -78,90 +72,82 @@ self.addEventListener('install', event => {
                 throw new Error(`HTTP ${response.status} for ${url}`);
               }
               await cache.put(url, response);
-              console.log('✅ Mis en cache:', url);
+              console.log('✅ Cached:', url);
             } catch (error) {
-              console.warn('⚠️ Échec de mise en cache (critique):', url, error.message);
-              throw error; // Bloquer l'installation si ressource critique échoue
+              console.warn('⚠️ Cache failure (critical):', url, error.message);
+              throw error;
             }
           })
         );
         
-        // Vérifier que toutes les ressources critiques sont en cache
         const failedCritical = criticalResults.filter(result => result.status === 'rejected');
         if (failedCritical.length > 0) {
-          console.error('❌ Échec de mise en cache des ressources critiques');
+          console.error('❌ Failed to cache critical resources');
           throw new Error('Critical resources failed to cache');
         }
         
-        // Mettre en cache les ressources secondaires (non bloquant)
-        console.log('🔄 Mise en cache des ressources secondaires...');
+        console.log('🔄 Caching secondary resources...');
         Promise.allSettled(
           SECONDARY_RESOURCES.map(async url => {
             try {
               const response = await fetch(url);
               if (response.ok) {
                 await cache.put(url, response);
-                console.log('✅ Mis en cache (secondaire):', url);
+                console.log('✅ Cached (secondary):', url);
               }
             } catch (error) {
-              console.warn('⚠️ Échec de mise en cache (secondaire):', url, error.message);
+              console.warn('⚠️ Cache failure (secondary):', url, error.message);
             }
           })
         );
         
-        // Mettre en cache les ressources externes (non bloquant)
-        console.log('🔄 Mise en cache des ressources externes...');
+        console.log('🔄 Caching external resources...');
         Promise.allSettled(
           EXTERNAL_RESOURCES.map(async url => {
             try {
               const response = await fetch(url);
               if (response.ok) {
                 await cache.put(url, response);
-                console.log('✅ Mis en cache (externe):', url);
+                console.log('✅ Cached (external):', url);
               }
             } catch (error) {
-              console.warn('⚠️ Échec de mise en cache (externe):', url, error.message);
+              console.warn('⚠️ Cache failure (external):', url, error.message);
             }
           })
         );
         
-        console.log('🎉 Installation terminée avec succès');
+        console.log('🎉 Installation completed successfully');
         
-        // Forcer l'activation immédiate
         self.skipWaiting();
         
       } catch (error) {
-        console.error('❌ Erreur lors de l\'installation:', error);
+        console.error('❌ Installation error:', error);
         throw error;
       }
     })()
   );
 });
 
-// Activation du Service Worker
 self.addEventListener('activate', event => {
-  console.log('🔄 Service Worker: Activation démarrée');
+  console.log('🔄 Service Worker: Activation started');
   
   event.waitUntil(
     (async () => {
       try {
-        // Nettoyer les anciens caches
         const cacheNames = await caches.keys();
         const deletePromises = cacheNames
           .filter(cacheName => cacheName.startsWith('8puzzle-cache-') && cacheName !== CACHE_NAME)
           .map(cacheName => {
-            console.log('🗑️ Suppression de l\'ancien cache:', cacheName);
+            console.log('🗑️ Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           });
         
         await Promise.all(deletePromises);
         
-        // Prendre le contrôle de tous les clients
         await self.clients.claim();
         
-        console.log('✅ Service Worker activé et prêt');
+        console.log('✅ Service Worker activated and ready');
         
-        // Notifier tous les clients de la mise à jour
         const clients = await self.clients.matchAll();
         clients.forEach(client => {
           client.postMessage({
@@ -172,22 +158,19 @@ self.addEventListener('activate', event => {
         });
         
       } catch (error) {
-        console.error('❌ Erreur lors de l\'activation:', error);
+        console.error('❌ Activation error:', error);
       }
     })()
   );
 });
 
-// Interception des requêtes
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
-  // Ignorer les requêtes non-GET
   if (event.request.method !== 'GET') {
     return;
   }
   
-  // Ignorer les requêtes Chrome DevTools
   if (url.protocol === 'chrome-extension:') {
     return;
   }
@@ -195,54 +178,47 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     (async () => {
       try {
-        // Stratégie: Cache First pour les ressources de l'app
         if (url.origin === location.origin || EXTERNAL_RESOURCES.includes(event.request.url)) {
-          // Chercher d'abord dans le cache
           const cachedResponse = await caches.match(event.request);
           if (cachedResponse) {
-            console.log('📦 Servi depuis le cache:', event.request.url);
+            console.log('📦 Served from cache:', event.request.url);
             return cachedResponse;
           }
         }
         
-        // Si pas en cache ou ressource externe, essayer le réseau
-        console.log('🌐 Tentative de récupération réseau:', event.request.url);
+        console.log('🌐 Network fetch attempt:', event.request.url);
         const networkResponse = await fetch(event.request);
         
-        // Mettre en cache les réponses réussies pour les ressources de l'app
         if (networkResponse.ok && url.origin === location.origin) {
           const cache = await caches.open(CACHE_NAME);
           await cache.put(event.request, networkResponse.clone());
-          console.log('💾 Mise en cache après récupération:', event.request.url);
+          console.log('💾 Cached after fetch:', event.request.url);
         }
         
         return networkResponse;
         
       } catch (error) {
-        console.warn('⚠️ Erreur de récupération pour:', event.request.url, error.message);
+        console.warn('⚠️ Fetch error for:', event.request.url, error.message);
         
-        // Fallback: essayer de servir depuis le cache même pour les ressources non-origin
         const cachedResponse = await caches.match(event.request);
         if (cachedResponse) {
-          console.log('🔄 Fallback cache pour:', event.request.url);
+          console.log('🔄 Fallback cache for:', event.request.url);
           return cachedResponse;
         }
         
-        // Si c'est une navigation et qu'on n'a rien, servir la page d'accueil
         if (event.request.mode === 'navigate') {
           const indexCache = await caches.match('./index.html');
           if (indexCache) {
-            console.log('🏠 Fallback vers index.html');
+            console.log('🏠 Fallback to index.html');
             return indexCache;
           }
         }
         
-        // Dernière tentative: page d'erreur offline simple
         return new Response(
           `<!DOCTYPE html>
           <html>
           <head>
-            <title>8-Puzzle - Hors ligne</title>
+            <title>8-Puzzle - Offline</title>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
@@ -255,11 +231,11 @@ self.addEventListener('fetch', event => {
           <body>
             <div class="offline">
               <h1>🧩 8-Puzzle</h1>
-              <h2>Mode hors ligne</h2>
-              <p>Cette page n'est pas disponible hors ligne.</p>
+              <h2>Offline Mode</h2>
+              <p>This page is not available offline.</p>
               <div class="retry">
-                <button onclick="location.reload()">Réessayer</button>
-                <button onclick="location.href='./'">Retour au jeu</button>
+                <button onclick="location.reload()">Retry</button>
+                <button onclick="location.href='./'">Back to Game</button>
               </div>
             </div>
           </body>
@@ -276,12 +252,11 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Écouter les messages des clients
 self.addEventListener('message', event => {
-  console.log('📨 Message reçu:', event.data);
+  console.log('📨 Message received:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏭️ Passage forcé à la nouvelle version');
+    console.log('⏭️ Forced skip to new version');
     self.skipWaiting();
   }
   
@@ -293,13 +268,12 @@ self.addEventListener('message', event => {
   }
 });
 
-// Gestion des erreurs globales
 self.addEventListener('error', event => {
-  console.error('❌ Erreur Service Worker:', event.error);
+  console.error('❌ Service Worker error:', event.error);
 });
 
 self.addEventListener('unhandledrejection', event => {
-  console.error('❌ Promise rejetée dans Service Worker:', event.reason);
+  console.error('❌ Promise rejected in Service Worker:', event.reason);
 });
 
-console.log('🎯 Service Worker configuré - Version:', APP_VERSION);
+console.log('🎯 Service Worker configured - Version:', APP_VERSION);

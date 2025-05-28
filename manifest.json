@@ -1,7 +1,7 @@
 {
   "name": "8-Puzzle",
   "short_name": "8-Puzzle",
-  "description": "Jeu de puzzle à 8 pièces avec différents niveaux de difficulté",
+  "description": "8-piece puzzle game with different difficulty levels",
   "start_url": "index.html?source=pwa",
   "scope": "./",
   "display": "standalone",
