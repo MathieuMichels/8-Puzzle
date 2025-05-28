@@ -215,6 +215,8 @@ button {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 .difficulty-selector label {
@@ -245,12 +247,32 @@ button {
 .difficulty-select:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: #764ba2;
 }
 
 .difficulty-select:focus {
     outline: none;
     border-color: #3498db;
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+}
+
+#customMovesContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#customMovesContainer label {
+    margin-right: 10px;
+}
+
+#customMoves {
+    padding: 6px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    width: 60px;
+    text-align: center;
 }
 
 .goal-state {

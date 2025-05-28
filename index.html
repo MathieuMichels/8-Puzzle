@@ -34,8 +34,13 @@
                     <option value="hard">Difficile (15-19 coups)</option>
                     <option value="very-hard">Très difficile (20-24 coups)</option>
                     <option value="extreme">Extrême (25+ coups)</option>
+                    <option value="custom">Personnalisé</option>
                     <option value="random">Aléatoire</option>
                 </select>
+                <div id="customMovesContainer" style="display: none; margin-top: 10px;">
+                    <label for="customMoves">Nombre de coups:</label>
+                    <input type="number" id="customMoves" min="0" max="31" value="15" style="width: 60px;">
+                </div>
             </div>
 
             <div class="controls">

@@ -39,9 +39,27 @@ class PuzzleGame {
         document.getElementById('shuffleBtn').addEventListener('click', () => this.shufflePuzzle());
         document.getElementById('solveBtn').addEventListener('click', () => this.solvePuzzle());
         document.getElementById('stopBtn').addEventListener('click', () => this.stopSolving());
+        
         // Ajout d'un écouteur pour le sélecteur de difficulté
-        document.getElementById('difficulty').addEventListener('change', (e) => {
+        const difficultySelect = document.getElementById('difficulty');
+        const customMovesContainer = document.getElementById('customMovesContainer');
+        
+        // Fonction pour gérer l'affichage du sélecteur de coups personnalisé
+        const toggleCustomMovesVisibility = () => {
+            if (difficultySelect.value === 'custom') {
+                customMovesContainer.style.display = 'block';
+            } else {
+                customMovesContainer.style.display = 'none';
+            }
+        };
+        
+        // Appliquer l'état initial
+        toggleCustomMovesVisibility();
+        
+        // Écouter les changements de sélection
+        difficultySelect.addEventListener('change', (e) => {
             console.log(`Niveau de difficulté changé: ${e.target.value}`);
+            toggleCustomMovesVisibility();
         });
     }
 
@@ -842,6 +860,102 @@ class PuzzleGame {
             puzzleChart.resetChart();
         }
         
+        this.updateStatus("Génération du puzzle en cours...");
+        
+        // Mode personnalisé : l'utilisateur a sélectionné un nombre exact de mouvements
+        if (selectedDifficulty === 'custom') {
+            // Récupérer la valeur du champ de saisie personnalisé
+            const customMovesInput = document.getElementById('customMoves');
+            const customMoves = parseInt(customMovesInput.value);
+            
+            if (isNaN(customMoves) || customMoves < 0 || customMoves > 31) {
+                this.updateStatus("Veuillez entrer un nombre de coups valide (0-31)");
+                return;
+            }
+            
+            // Essayer de charger une configuration depuis le fichier JSON correspondant
+            this.loadPuzzleFromJSON(customMoves, `Mode personnalisé (${customMoves} coups)`);
+            return;
+        }
+        
+        // Pour le mode aléatoire, on fait simplement un mélange très intense
+        if (selectedDifficulty === 'random') {
+            this.randomMixPuzzle(200);
+            this.finalizePuzzleGeneration("Aléatoire");
+            return;
+        }
+        
+        // Pour les autres niveaux de difficulté, essayer d'abord de charger depuis un fichier JSON
+        const difficultyRange = this.getDifficultyRange(selectedDifficulty);
+        
+        // Tenter de charger une configuration JSON dans la plage de difficulté
+        let loaded = false;
+        
+        // Créer une liste de nombres de mouvements possibles dans la plage cible
+        let possibleMoves = [];
+        for (let moves = difficultyRange.min; moves <= difficultyRange.max && moves <= 31; moves++) {
+            possibleMoves.push(moves);
+        }
+        
+        // Mélanger la liste pour une sélection aléatoire
+        possibleMoves = this.shuffleArray(possibleMoves);
+        
+        // Essayer chaque valeur possible jusqu'à trouver une configuration valide
+        for (const moves of possibleMoves) {
+            loaded = this.loadPuzzleFromJSON(moves, difficultyRange.label);
+            if (loaded) break;
+        }
+        
+        // Si le chargement échoue après avoir essayé toutes les valeurs possibles, revenir à l'ancienne méthode
+        if (!loaded) {
+            console.log("Impossible de charger une configuration depuis les fichiers JSON. Utilisation de la méthode de mélange classique.");
+            this.generatePuzzleWithDifficultyClassic(selectedDifficulty);
+        }
+    }
+    
+    // Nouvelle méthode pour charger une configuration depuis un fichier JSON
+    loadPuzzleFromJSON(moves, difficultyLabel) {
+        try {
+            // Utiliser un chemin relatif pour fonctionner dans le navigateur
+            const filePath = `assets/move_data/moves_${moves}.json`;
+            
+            // Utiliser une requête synchrone pour simplifier le code
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', filePath, false);
+            xhr.send(null);
+            
+            if (xhr.status === 200) {
+                const puzzleData = JSON.parse(xhr.responseText);
+                
+                if (puzzleData && puzzleData.states && puzzleData.states.length > 0) {
+                    // Sélectionner une configuration aléatoire parmi celles disponibles
+                    const randomIndex = Math.floor(Math.random() * puzzleData.states.length);
+                    const puzzleState = puzzleData.states[randomIndex];
+                    
+                    // Appliquer la configuration
+                    this.grid = puzzleState;
+                    this.renderGrid();
+                    
+                    // Mettre à jour les compteurs
+                    this.minMoves = puzzleData.moves;
+                    document.getElementById('minMoves').textContent = this.minMoves;
+                    this.finalizePuzzleGeneration(difficultyLabel);
+                    
+                    console.log(`Configuration chargée depuis ${filePath} (${puzzleData.moves} coups)`);
+                    return true;
+                }
+            }
+            
+            console.log(`Impossible de charger ou parser le fichier ${filePath}`);
+            return false;
+        } catch (error) {
+            console.error("Erreur lors du chargement de la configuration :", error);
+            return false;
+        }
+    }
+    
+    // Ancienne méthode de génération utilisée en fallback
+    generatePuzzleWithDifficultyClassic(selectedDifficulty) {
         // Définir les plages de difficulté pour chaque niveau
         const difficultyRange = this.getDifficultyRange(selectedDifficulty);
         let minMovesTarget = { min: difficultyRange.min, max: difficultyRange.max };
@@ -850,15 +964,6 @@ class PuzzleGame {
         const maxAttempts = 100;
         let attempts = 0;
         let puzzleFound = false;
-        
-        this.updateStatus("Génération du puzzle en cours...");
-        
-        // Pour le mode aléatoire, on fait simplement un mélange très intense
-        if (selectedDifficulty === 'random') {
-            this.randomMixPuzzle(200);
-            this.finalizePuzzleGeneration("Aléatoire");
-            return;
-        }
         
         // Pour les autres niveaux de difficulté, on génère un puzzle bien mélangé 
         // puis on le résout partiellement jusqu'à atteindre la difficulté souhaitée
@@ -1021,10 +1126,20 @@ class PuzzleGame {
         this.moves = 0;
         this.updateMoveCount();
         this.updateChartData();
-        this.updateStatus(`Puzzle mélangé! Difficulté: ${difficultyLabel} (${this.minMoves} coups minimum)`);
+        this.updateStatus(`Puzzle mélangé! Difficulté: ${difficultyLabel}`);
         this.startTimer();
     }
     
+    // Méthode utilitaire pour mélanger un tableau (algorithme de Fisher-Yates)
+    shuffleArray(array) {
+        const newArray = [...array];
+        for (let i = newArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+        }
+        return newArray;
+    }
+
     // Méthode utilitaire pour générer un nombre aléatoire dans un intervalle [min, max[
     getRandomInt(min, max) {
         min = Math.ceil(min);
@@ -1269,6 +1384,8 @@ class PuzzleGame {
         // Mettre à jour le graphique de façon non-bloquante
         if (typeof puzzleChart !== 'undefined') {
             requestAnimationFrame(() => {
+                // Assurer que l'affichage du nombre minimum de coups est à jour
+                document.getElementById('minMoves').textContent = this.minMoves;
                 puzzleChart.updateChart(this.moves, this.minMoves);
             });
         }
