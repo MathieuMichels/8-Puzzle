@@ -1173,7 +1173,7 @@ class PuzzleGame {
             this.solvingInterval = null;
         }
         if (!this.isWon()) {
-            this.updateStatus("Résolution arrêtée.");
+            this.updateStatus("Solving stopped.");
         }
     }
 
